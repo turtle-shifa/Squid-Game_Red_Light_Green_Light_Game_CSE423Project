@@ -99,7 +99,9 @@
 ---
 
 ## 📷 Screenshots
-![Gameplay View](images/overview)
+![View](images/overview.PNG)
+![Gameplay View](images/Running.PNG)
+![GameOver View](images/GameOver.PNG)
 
 ---
 
