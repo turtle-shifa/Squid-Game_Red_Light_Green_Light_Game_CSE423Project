@@ -99,9 +99,9 @@
 ---
 
 ## 📷 Screenshots
-![Gameplay View](images/overview.png)
+![Gameplay View](images/overview)
 
 ---
 
 ## 📁 Project Setup
-To build and run the project: 
+To build and run the project: Group12_SquidGame_RedLight_GreenLight_24341196_24241215_22201684 (latest version of the file)
