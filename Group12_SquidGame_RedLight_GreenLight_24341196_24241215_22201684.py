@@ -152,115 +152,61 @@ def draw_guards():
     draw_guard(GUARD_POSITIONS[1], mirror=True)
 
 def draw_player():
-    if not player_alive:
-        x, y, z = player_pos
+    """Draw the player character using a combination of cubes and spheres"""
+    x, y, z = player_pos
+    
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # Apply death animation rotation if player is dead and falling
+    if not player_alive and player_falling:
+        glRotatef(player_rotation, 1, 0, 0)  # Rotate around x-axis to fall forward
+    
+    # First-person mode logic - ONLY skip drawing if in first-person AND alive
+    if camera_mode == "first_person" and player_alive:
+        # Only draw hands in first-person when alive
+        glColor3f(0.8, 0.6, 0.5)  # Skin color for arms
         
+        # Left arm/hand (visible at bottom left of screen)
         glPushMatrix()
-        glTranslatef(x, y, z)
-        
-        # If player is dying, rotate them to lay down
-        if player_falling:
-            glRotatef(player_rotation, 1, 0, 0)  # Rotate around x-axis to fall forward
-        
-        # Draw player as before, but now they'll rotate when dead
-        if camera_mode == "first_person":
-            # In first person, only draw arms when dead
-            glColor3f(0.8, 0.6, 0.5)
-            
-            # Left arm
-            glPushMatrix()
-            glTranslatef(-20, player_height/2 - 30, -10)
-            glRotatef(30, 1, 0, 0)
-            glScalef(8, 40, 8)
-            glutSolidCube(1.0)
-            glPopMatrix()
-            
-            # Right arm
-            glPushMatrix()
-            glTranslatef(20, player_height/2 - 30, -10)
-            glRotatef(30, 1, 0, 0)
-            glScalef(8, 40, 8)
-            glutSolidCube(1.0)
-            glPopMatrix()
-            
-            glPopMatrix()
-            return
-        
-        # player's body
-        glColor3f(0.118, 0.537, 0.537)
-        glPushMatrix()
-        glTranslatef(0, player_height/2 - 10, 0)
-        glScalef(player_width, player_height/2, player_depth)
+        glTranslatef(-20, player_height/2 - 30, -10)
+        glRotatef(30, 1, 0, 0)  # Angle the arm forward
+        glScalef(8, 40, 8)
         glutSolidCube(1.0)
         glPopMatrix()
         
-        # player's head
-        glColor3f(0, 0, 0)
+        # Right arm/hand (visible at bottom right of screen)
         glPushMatrix()
-        glTranslatef(0, player_height - 15, 0)
-        gluSphere(gluNewQuadric(), 18, 16, 16)
-        glPopMatrix()
-        
-        # player's legs
-        glColor3f(0.118, 0.537, 0.537)
-        
-        # Left leg
-        glPushMatrix()
-        glTranslatef(-10, 0, 0)
-        glScalef(8, 30, player_depth)
-        glutSolidCube(1.0)
-        glPopMatrix()
-        
-        # Right leg
-        glPushMatrix()
-        glTranslatef(10, 0, 0)
-        glScalef(8, 30, player_depth)
-        glutSolidCube(1.0)
-        glPopMatrix()
-        
-        # Draw player's arms
-        glColor3f(0.8, 0.6, 0.5)
-        
-        # Left arm
-        glPushMatrix()
-        glTranslatef(-player_width/2 - 8, player_height/2, 0)
-        glScalef(7, 35, 10)
-        glutSolidCube(1.0)
-        glPopMatrix()
-        
-        # Right arm
-        glPushMatrix()
-        glTranslatef(player_width/2 + 8, player_height/2, 0) 
-        glScalef(7, 35, 10)
+        glTranslatef(20, player_height/2 - 30, -10)
+        glRotatef(30, 1, 0, 0)  # Angle the arm forward
+        glScalef(8, 40, 8)
         glutSolidCube(1.0)
         glPopMatrix()
         
         glPopMatrix()
         return
     
-    # Original player drawing code for when player is alive
-    x, y, z = player_pos
+    # Full character rendering for: 
+    # 1. Third-person mode when alive
+    # 2. Any mode when dead (ensures character is visible during death animation)
     
+    # Draw player's body (rectangular prism)
+    glColor3f(0.118, 0.537, 0.537)  # Blue color for player's body
     glPushMatrix()
-    glTranslatef(x, y, z)
-    
-    # player's body
-    glColor3f(0.118, 0.537, 0.537)
-    glPushMatrix()
-    glTranslatef(0, player_height/2 - 10, 0)
-    glScalef(player_width, player_height/2, player_depth)
-    glutSolidCube(1.0)
+    glTranslatef(0, player_height/2 - 10, 0)  # Move up to place bottom at ground level
+    glScalef(player_width, player_height/2, player_depth)  # Scale to player body dimensions
+    glutSolidCube(1.0)  # Unit cube scaled to body dimensions
     glPopMatrix()
     
-    # player's head
-    glColor3f(0, 0, 0)
+    # Draw player's head (sphere)
+    glColor3f(0, 0, 0)  # Black color for head
     glPushMatrix()
-    glTranslatef(0, player_height - 15, 0)
-    gluSphere(gluNewQuadric(), 18, 16, 16)
+    glTranslatef(0, player_height - 15, 0)  # Position on top of body
+    gluSphere(gluNewQuadric(), 18, 16, 16)  # Head sphere
     glPopMatrix()
     
-    # player's legs
-    glColor3f(0.118, 0.537, 0.537)
+    # Draw player's legs
+    glColor3f(0.118, 0.537, 0.537)  # Same blue color for legs
     
     # Left leg
     glPushMatrix()
@@ -277,7 +223,7 @@ def draw_player():
     glPopMatrix()
     
     # Draw player's arms
-    glColor3f(0.8, 0.6, 0.5)
+    glColor3f(0.8, 0.6, 0.5)  # Skin color for arms
     
     # Left arm
     glPushMatrix()
@@ -288,7 +234,7 @@ def draw_player():
     
     # Right arm
     glPushMatrix()
-    glTranslatef(player_width/2 + 8, player_height/2, 0) 
+    glTranslatef(player_width/2 + 8, player_height/2, 0)
     glScalef(7, 35, 10)
     glutSolidCube(1.0)
     glPopMatrix()
