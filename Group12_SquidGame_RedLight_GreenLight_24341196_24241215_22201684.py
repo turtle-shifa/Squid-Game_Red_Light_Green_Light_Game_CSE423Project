@@ -679,6 +679,7 @@ def start_game():
     global player_pos, player_alive, player_won, was_moving_during_red
     global is_red_light, last_toggle_time, doll_rotation
     global game_timer, start_time, game_active, countdown_started
+    global camera_mode
     
     # Reset player state
     player_pos = [0, 0, 200]  # Back to start position
@@ -696,6 +697,7 @@ def start_game():
     start_time = time.time()  # Record the start time
     game_active = True
     countdown_started = True
+    camera_mode = "third_person"
     
     print("Game started! You have 60 seconds to reach the finish line.")
 
