@@ -1,0 +1,943 @@
+from OpenGL.GL import *
+from OpenGL.GLUT import *
+from OpenGL.GLU import *
+import time
+import math
+import random
+
+# Camera-related variables
+camera_pos = (0, 200, 500)
+camera_mode = "third_person"
+fovY = 60
+
+# Environment variables
+FINISH_LINE_Z = -1000
+START_LINE_Z = 250
+PATH_WIDTH = 500
+
+# Doll-related variables
+DOLL_POSITION = (0, 0, -980)
+DOLL_HEIGHT = 175
+DOLL_HEAD_RADIUS = 42
+DOLL_BODY_WIDTH = 70
+DOLL_BODY_HEIGHT = 112
+DOLL_BODY_DEPTH = 35
+
+# Game state variables
+is_red_light = False
+last_toggle_time = 0
+red_light_duration = 3.0 
+green_light_duration = 5.0
+doll_rotation = 180
+rotation_speed = 720
+is_rotating = False
+
+# Player-related variables
+player_pos = [0, 0, 200]
+player_height = 100 
+player_width = 25
+player_depth = 20
+player_speed = 5
+player_is_moving = False
+player_alive = True
+player_won = False
+was_moving_during_red = False
+
+# Timer-related variables
+game_timer = 60.0
+start_time = 0
+game_active = False
+countdown_started = False
+
+player_falling = False
+player_rotation = 0
+bullet_pos = None
+bullet_active = False
+bullet_speed = 30
+bullet_size = 15
+
+def draw_player():
+    if not player_alive:
+        x, y, z = player_pos
+        
+        glPushMatrix()
+        glTranslatef(x, y, z)
+        
+        # If player is dying, rotate them to lay down
+        if player_falling:
+            glRotatef(player_rotation, 1, 0, 0)  # Rotate around x-axis to fall forward
+        
+        # Draw player as before, but now they'll rotate when dead
+        if camera_mode == "first_person":
+            # In first person, only draw arms when dead
+            glColor3f(0.8, 0.6, 0.5)
+            
+            # Left arm
+            glPushMatrix()
+            glTranslatef(-20, player_height/2 - 30, -10)
+            glRotatef(30, 1, 0, 0)
+            glScalef(8, 40, 8)
+            glutSolidCube(1.0)
+            glPopMatrix()
+            
+            # Right arm
+            glPushMatrix()
+            glTranslatef(20, player_height/2 - 30, -10)
+            glRotatef(30, 1, 0, 0)
+            glScalef(8, 40, 8)
+            glutSolidCube(1.0)
+            glPopMatrix()
+            
+            glPopMatrix()
+            return
+        
+        # player's body
+        glColor3f(0.118, 0.537, 0.537)
+        glPushMatrix()
+        glTranslatef(0, player_height/2 - 10, 0)
+        glScalef(player_width, player_height/2, player_depth)
+        glutSolidCube(1.0)
+        glPopMatrix()
+        
+        # player's head
+        glColor3f(0, 0, 0)
+        glPushMatrix()
+        glTranslatef(0, player_height - 15, 0)
+        gluSphere(gluNewQuadric(), 18, 16, 16)
+        glPopMatrix()
+        
+        # player's legs
+        glColor3f(0.118, 0.537, 0.537)
+        
+        # Left leg
+        glPushMatrix()
+        glTranslatef(-10, 0, 0)
+        glScalef(8, 30, player_depth)
+        glutSolidCube(1.0)
+        glPopMatrix()
+        
+        # Right leg
+        glPushMatrix()
+        glTranslatef(10, 0, 0)
+        glScalef(8, 30, player_depth)
+        glutSolidCube(1.0)
+        glPopMatrix()
+        
+        # Draw player's arms
+        glColor3f(0.8, 0.6, 0.5)
+        
+        # Left arm
+        glPushMatrix()
+        glTranslatef(-player_width/2 - 8, player_height/2, 0)
+        glScalef(7, 35, 10)
+        glutSolidCube(1.0)
+        glPopMatrix()
+        
+        # Right arm
+        glPushMatrix()
+        glTranslatef(player_width/2 + 8, player_height/2, 0) 
+        glScalef(7, 35, 10)
+        glutSolidCube(1.0)
+        glPopMatrix()
+        
+        glPopMatrix()
+        return
+    
+    # Original player drawing code for when player is alive
+    x, y, z = player_pos
+    
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    
+    # player's body
+    glColor3f(0.118, 0.537, 0.537)
+    glPushMatrix()
+    glTranslatef(0, player_height/2 - 10, 0)
+    glScalef(player_width, player_height/2, player_depth)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    # player's head
+    glColor3f(0, 0, 0)
+    glPushMatrix()
+    glTranslatef(0, player_height - 15, 0)
+    gluSphere(gluNewQuadric(), 18, 16, 16)
+    glPopMatrix()
+    
+    # player's legs
+    glColor3f(0.118, 0.537, 0.537)
+    
+    # Left leg
+    glPushMatrix()
+    glTranslatef(-10, 0, 0)
+    glScalef(8, 30, player_depth)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    # Right leg
+    glPushMatrix()
+    glTranslatef(10, 0, 0)
+    glScalef(8, 30, player_depth)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    # Draw player's arms
+    glColor3f(0.8, 0.6, 0.5)
+    
+    # Left arm
+    glPushMatrix()
+    glTranslatef(-player_width/2 - 8, player_height/2, 0)
+    glScalef(7, 35, 10)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    # Right arm
+    glPushMatrix()
+    glTranslatef(player_width/2 + 8, player_height/2, 0) 
+    glScalef(7, 35, 10)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    glPopMatrix()
+
+def draw_bullet():
+    """Draw the red bullet if it's active"""
+    if bullet_active and bullet_pos:
+        glPushMatrix()
+        glColor3f(1.0, 0.0, 0.0)  # Bright red color
+        glTranslatef(bullet_pos[0], bullet_pos[1], bullet_pos[2])
+        
+        # Create a glowing effect with a larger transparent sphere around the bullet
+        glPushMatrix()
+        glColor4f(1.0, 0.0, 0.0, 0.3)  # Semi-transparent red
+        gluSphere(gluNewQuadric(), bullet_size * 1.5, 16, 16)
+        glPopMatrix()
+        
+        # Solid core of the bullet
+        glColor3f(1.0, 0.2, 0.0)
+        gluSphere(gluNewQuadric(), bullet_size, 16, 16)
+        
+        glPopMatrix()
+
+def handle_player_movement():
+    global player_pos, player_is_moving, was_moving_during_red
+    
+    player_is_moving = False
+    
+    if not player_alive or player_won:
+        return
+    
+    keys = glutGetModifiers()  # This doesn't actually get WASD state, we'll use keyboardListener instead
+    
+    if is_red_light and player_is_moving:
+        was_moving_during_red = True
+
+def handle_player_death():
+    """
+    Handles the death animation when player is eliminated:
+    - Makes the player fall/lie down
+    - Creates a red bullet that shoots from doll's eye
+    """
+    global player_falling, player_rotation, bullet_pos, bullet_active, player_alive
+    
+    # If player just died and death animation hasn't started yet
+    if not player_alive and not player_falling and not bullet_active:
+        player_falling = True
+        player_rotation = 0
+        
+        # Create bullet from doll's eye
+        # Calculate the bullet starting position (from doll's right eye)
+        eye_x = DOLL_POSITION[0] + 20 * math.sin(math.radians(doll_rotation))
+        eye_y = DOLL_POSITION[1] + DOLL_BODY_HEIGHT + DOLL_HEAD_RADIUS/2 + 5
+        eye_z = DOLL_POSITION[2] + DOLL_HEAD_RADIUS * math.cos(math.radians(doll_rotation))
+        
+        # Set the target as the player's position
+        target_x = player_pos[0]
+        target_y = player_pos[1] + player_height/2
+        target_z = player_pos[2]
+        
+        # Calculate direction vector from eye to player
+        dir_x = target_x - eye_x
+        dir_y = target_y - eye_y
+        dir_z = target_z - eye_z
+        
+        # Normalize the direction vector
+        length = math.sqrt(dir_x**2 + dir_y**2 + dir_z**2)
+        if length > 0:
+            dir_x /= length
+            dir_y /= length
+            dir_z /= length
+        
+        # Set the bullet position and activate it
+        bullet_pos = [eye_x, eye_y, eye_z, dir_x, dir_y, dir_z]
+        bullet_active = True
+    
+    # Update falling animation for player
+    if player_falling and player_rotation < 90:
+        player_rotation += 5  # Rotate 5 degrees per frame until reaching 90 degrees
+    
+    # Update bullet position if active
+    if bullet_active and bullet_pos:
+        # Move the bullet in the direction vector
+        bullet_pos[0] += bullet_pos[3] * bullet_speed
+        bullet_pos[1] += bullet_pos[4] * bullet_speed
+        bullet_pos[2] += bullet_pos[5] * bullet_speed
+        
+        # Check if bullet has reached player
+        dist_x = bullet_pos[0] - player_pos[0]
+        dist_y = bullet_pos[1] - (player_pos[1] + player_height/2)
+        dist_z = bullet_pos[2] - player_pos[2]
+        
+        distance = math.sqrt(dist_x**2 + dist_y**2 + dist_z**2)
+        
+        # If bullet reached player or went too far, deactivate it
+        if distance < 20 or distance > 2000:
+            bullet_active = False
+
+def check_game_conditions():
+    global player_alive, player_won, was_moving_during_red, game_active, player_falling
+    
+    if was_moving_during_red and is_red_light and not is_rotating:
+        player_alive = False
+        game_active = False
+        print("Game Over! You moved during red light.")
+        
+    if player_pos[2] <= FINISH_LINE_Z + 50 and player_alive:
+        player_won = True
+        game_active = False
+        print("You won! You reached the finish line.")
+        
+    if not is_red_light:
+        was_moving_during_red = False
+
+def display_game_status():
+    if not player_alive:
+        glColor3f(1.0, 0.0, 0.0)
+        draw_text(400, 700, "GAME OVER! YOU MOVED DURING RED LIGHT!")
+    elif player_won:
+        glColor3f(0.0, 1.0, 0.1)
+        draw_text(400, 700, "YOU WIN! CONGRATULATIONS!")
+
+def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
+    glColor3f(1,1,1)
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    
+    # Set up an orthographic projection that matches window coordinates
+    gluOrtho2D(0, 1000, 0, 800)  # left, right, bottom, top
+
+    
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+    
+    # Draw text at (x, y) in screen coordinates
+    glRasterPos2f(x, y)
+    for ch in text:
+        glutBitmapCharacter(font, ord(ch))
+    
+    # Restore original projection and modelview matrices
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+
+def draw_traffic_light():
+    light_x = -150
+    light_y = DOLL_HEIGHT + 100
+    light_z = DOLL_POSITION[2] + 50
+    
+    glColor3f(0.3, 0.3, 0.3) 
+    glPushMatrix()
+    glTranslatef(light_x, light_y/2, light_z)
+    glScalef(10, light_y, 10)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    # Draw traffic light housing
+    glColor3f(0.1, 0.1, 0.1)
+    glPushMatrix()
+    glTranslatef(light_x, light_y + 40, light_z)
+    glScalef(30, 80, 20)  # Rectangular box
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    # Draw red light (top)
+    if is_red_light:
+        glColor3f(1.0, 0.0, 0.0)  # Bright red
+    else:
+        glColor3f(0.5, 0.0, 0.0)  # Darker red
+    
+    glPushMatrix()
+    glTranslatef(light_x, light_y + 70, light_z + 10)
+    gluSphere(gluNewQuadric(), 12, 16, 16)  # Red sphere
+    glPopMatrix()
+    
+    # Draw green light (bottom)
+    if not is_red_light:
+        glColor3f(0.0, 1.0, 0.0)  # Bright green
+    else:
+        glColor3f(0.0, 0.5, 0.0)  # Darker green
+    
+    glPushMatrix()
+    glTranslatef(light_x, light_y + 10, light_z + 10)
+    gluSphere(gluNewQuadric(), 12, 16, 16)  # Green sphere
+    glPopMatrix()
+
+def draw_doll():
+
+    x, y, z = DOLL_POSITION
+    
+    glPushMatrix()
+    glTranslatef(x, y, z)
+    glRotatef(doll_rotation, 0, 1, 0)
+    
+    # doll's body
+    glColor3f(1, 0.318, 0)
+    glPushMatrix()
+    glTranslatef(0, DOLL_BODY_HEIGHT/2, 0)
+    glScalef(DOLL_BODY_WIDTH, DOLL_BODY_HEIGHT, DOLL_BODY_DEPTH)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    # doll's head
+    glColor3f(0.969, 0.863, 0.863)
+    glPushMatrix()
+    glTranslatef(0, DOLL_BODY_HEIGHT + DOLL_HEAD_RADIUS/2, 0)
+    gluSphere(gluNewQuadric(), DOLL_HEAD_RADIUS, 24, 24)
+    glPopMatrix()
+    
+    # Draw doll's eyes
+    glPushMatrix()
+    glTranslatef(0, DOLL_BODY_HEIGHT + DOLL_HEAD_RADIUS/2, DOLL_HEAD_RADIUS - 5)
+    
+    # Left eye
+    glColor3f(0, 0, 0)  # Black eyes
+    glPushMatrix()
+    glTranslatef(-20, 5, 0)
+    gluSphere(gluNewQuadric(), 10, 16, 16)
+    glPopMatrix()
+    
+    # Right eye
+    glPushMatrix()
+    glTranslatef(20, 5, 0)
+    gluSphere(gluNewQuadric(), 10, 16, 16)
+    glPopMatrix()
+    
+    glPopMatrix()
+
+    # Draw doll's dress (conical shape below body)
+    glColor3f(1, 0.569, 0.075)
+    glPushMatrix()
+    glTranslatef(0, 0, 0)
+    glRotatef(-90, 1, 0, 0)
+    gluCylinder(gluNewQuadric(), DOLL_BODY_WIDTH * 0.8, DOLL_BODY_WIDTH * 1.2, DOLL_BODY_HEIGHT/2, 24, 8) 
+    glPopMatrix()
+    
+    # Draw doll's arms
+    glColor3f(1, 0.906, 0.796)
+    
+    # Left arm
+    glPushMatrix()
+    glTranslatef(-DOLL_BODY_WIDTH/2 - 5, DOLL_BODY_HEIGHT - 30, 0)
+    glRotatef(25, 0, 0, 1) 
+    glRotatef(90, 0, 1, 0)
+    gluCylinder(gluNewQuadric(), 15, 12, 60, 16, 8)
+    
+    # Left hand
+    glTranslatef(0, 0, 60)
+    gluSphere(gluNewQuadric(), 15, 16, 16)
+    glPopMatrix()
+    
+    # Right arm
+    glPushMatrix()
+    glTranslatef(DOLL_BODY_WIDTH/2 + 5, DOLL_BODY_HEIGHT - 30, 0)
+    glRotatef(-25, 0, 0, 1)
+    glRotatef(-90, 0, 1, 0)
+    gluCylinder(gluNewQuadric(), 15, 12, 60, 16, 8)
+    
+    # Right hand
+    glTranslatef(0, 0, 60)
+    gluSphere(gluNewQuadric(), 15, 16, 16)
+    glPopMatrix()
+    
+    # Add a platform for the doll to stand on
+    glColor3f(0.5, 0.5, 0.5)
+    glPushMatrix()
+    glTranslatef(0, -5, 0)
+    glScalef(DOLL_BODY_WIDTH * 2, 10, DOLL_BODY_WIDTH)
+    glutSolidCube(1.0)
+    glPopMatrix()
+    
+    glPopMatrix()
+
+def draw_environment():
+    
+    # Draw the main path from start to finish
+    glBegin(GL_QUADS)
+    # Main path (green)
+    glColor3f(0.2, 0.7, 0.2)  # Green color for the path
+    glVertex3f(-PATH_WIDTH/2, 0, START_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, 0, START_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, 0, FINISH_LINE_Z)
+    glVertex3f(-PATH_WIDTH/2, 0, FINISH_LINE_Z)
+    glEnd()
+    
+    # Draw start line (white)
+    glBegin(GL_QUADS)
+    glColor3f(1.0, 1.0, 1.0)  # White color
+    glVertex3f(-PATH_WIDTH/2, 0.1, START_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, 0.1, START_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, 0.1, START_LINE_Z - 10)
+    glVertex3f(-PATH_WIDTH/2, 0.1, START_LINE_Z - 10)
+    glEnd()
+    
+    
+    # Finish Line 1st
+    glBegin(GL_QUADS)
+    x_start = -250
+    z_start = -900
+
+    for i in range(25):
+        if i % 2 == 0:
+            glColor3f(1.0, 1.0, 1.0)  # White
+        else:
+            glColor3f(0.0, 0.0, 0.0)  # Black
+            
+        glVertex3f(x_start, 5, z_start)
+        glVertex3f(x_start + 20, 5, z_start)
+        glVertex3f(x_start + 20, 5, z_start + 20)
+        glVertex3f(x_start, 5, z_start + 20)
+
+        x_start += 20
+
+    glEnd()
+    
+    # Finish Line 2nd
+    glBegin(GL_QUADS)
+    x_start = -250
+    z_start = -880
+
+    for i in range(25):
+        if i % 2 == 0:
+            glColor3f(0.0, 0.0, 0.0) # Black
+        else:
+            glColor3f(1.0, 1.0, 1.0) # White
+            
+        glVertex3f(x_start, 5, z_start)
+        glVertex3f(x_start + 20, 5, z_start)
+        glVertex3f(x_start + 20, 5, z_start + 20)
+        glVertex3f(x_start, 5, z_start + 20)
+
+        x_start += 20
+
+    glEnd()
+    
+    # Draw boundary walls along the path
+    wall_height = 80
+    
+    # Left wall
+    glBegin(GL_QUADS)
+    glColor3f(0.7, 0.3, 0.3)  # Reddish color for walls
+    glVertex3f(-PATH_WIDTH/2, 0, START_LINE_Z)
+    glVertex3f(-PATH_WIDTH/2, wall_height, START_LINE_Z)
+    glVertex3f(-PATH_WIDTH/2, wall_height, FINISH_LINE_Z)
+    glVertex3f(-PATH_WIDTH/2, 0, FINISH_LINE_Z)
+    glEnd()
+    
+    # Right wall
+    glBegin(GL_QUADS)
+    glColor3f(0.7, 0.3, 0.3)  # Reddish color for walls
+    glVertex3f(PATH_WIDTH/2, 0, START_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, wall_height, START_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, wall_height, FINISH_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, 0, FINISH_LINE_Z)
+    glEnd()
+    
+    # End wall (behind finish line)
+    glBegin(GL_QUADS)
+    glColor3f(0.7, 0.3, 0.3)  # Reddish color for walls
+    glVertex3f(-PATH_WIDTH/2, 0, FINISH_LINE_Z)
+    glVertex3f(-PATH_WIDTH/2, wall_height, FINISH_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, wall_height, FINISH_LINE_Z)
+    glVertex3f(PATH_WIDTH/2, 0, FINISH_LINE_Z)
+    glEnd()
+
+def update_game_state():
+    global is_red_light, last_toggle_time, doll_rotation, is_rotating, red_light_duration, green_light_duration
+    
+    # Don't update game state if game is over
+    if not game_active:
+        return
+    
+    current_time = time.time()
+    
+    # Check if it's time to toggle the light state
+    if is_red_light and current_time - last_toggle_time > red_light_duration:
+        # Switch to green light
+        is_red_light = False
+        last_toggle_time = current_time
+        is_rotating = True  # Start rotation
+        # Set a highly random duration for green light (1.5-8 seconds)
+        green_light_duration = random.uniform(1.5, 8.0)
+    elif not is_red_light and current_time - last_toggle_time > green_light_duration:
+        # Switch to red light
+        is_red_light = True
+        last_toggle_time = current_time
+        is_rotating = True  # Start rotation
+        # Set a highly random duration for red light (1-7 seconds)
+        red_light_duration = random.uniform(1.0, 7.0)
+
+def update_doll_rotation():
+    global doll_rotation, is_rotating
+    
+    if is_rotating:
+        # Determine target rotation based on light state
+        if is_red_light:
+            target_rotation = 0
+        else:
+            target_rotation = 180
+
+        # Calculate rotation step based on elapsed time
+        elapsed_time = time.time() - last_toggle_time
+        rotation_step = rotation_speed * min(elapsed_time, 0.5)  # Cap to prevent large jumps
+        
+        # Determine current rotation direction
+        if abs(target_rotation - doll_rotation) < rotation_step:
+            # We've reached (or nearly reached) the target
+            doll_rotation = target_rotation
+            is_rotating = False
+        else:
+            # Calculate shortest angular difference
+            angle_diff = (target_rotation - doll_rotation) % 360
+
+            if angle_diff <= 180:
+                # Rotate clockwise
+                doll_rotation = (doll_rotation + rotation_step) % 360
+            else:
+                # Rotate counter-clockwise
+                doll_rotation = (doll_rotation - rotation_step) % 360
+
+def start_game():
+    """Initialize/restart the game"""
+    global player_pos, player_alive, player_won, was_moving_during_red
+    global is_red_light, last_toggle_time, doll_rotation
+    global game_timer, start_time, game_active, countdown_started
+    
+    # Reset player state
+    player_pos = [0, 0, 200]  # Back to start position
+    player_alive = True
+    player_won = False
+    was_moving_during_red = False
+    
+    # Reset game state
+    is_red_light = False  # Start with green light
+    last_toggle_time = time.time()
+    doll_rotation = 180  # Start with doll facing away
+    
+    # Reset timer
+    game_timer = 60.0  # Reset to 60 seconds
+    start_time = time.time()  # Record the start time
+    game_active = True
+    countdown_started = True
+    
+    print("Game started! You have 60 seconds to reach the finish line.")
+
+def update_timer():
+    """Update the game timer"""
+    global game_timer, game_active, player_alive
+    
+    # Only update timer if game is active AND player is alive AND player hasn't won yet
+    if countdown_started and game_active and player_alive and not player_won:
+        elapsed = time.time() - start_time
+        game_timer = max(60.0 - elapsed, 0)  # Calculate remaining time
+        
+        # Check if time is up
+        if game_timer <= 0:
+            game_active = False
+            player_alive = False
+            print("Time's up! Game over.")
+
+def display_game_status():
+    """Display game status messages"""
+    # Display timer
+    if countdown_started:
+        minutes = int(game_timer) // 60
+        seconds = int(game_timer) % 60
+        glColor3f(1.0, 1.0, 0.0)  # Yellow text for timer
+        draw_text(10, 710, f"TIME LEFT: {minutes:02d}:{seconds:02d}")
+    
+    if not player_alive and game_timer <= 0:
+        glColor3f(1.0, 0.0, 0.0)  # Red text
+        draw_text(400, 700, "GAME OVER! TIME'S UP!")
+    elif not player_alive:
+        glColor3f(1.0, 0.0, 0.0)  # Red text
+        draw_text(400, 700, "GAME OVER! YOU MOVED DURING RED LIGHT!")
+    elif player_won:
+        glColor3f(0.0, 1.0, 0.3)  # Green text
+        draw_text(400, 700, "YOU WIN! CONGRATULATIONS!")
+
+def draw_shapes():
+    """Draw the various 3D shapes in the scene"""
+    # Draw the environment
+    draw_environment()
+    
+    # Draw the doll
+    draw_doll()
+    
+    # Draw the player
+    draw_player()
+    
+    # Draw the traffic light
+    draw_traffic_light()
+    
+    draw_bullet()
+
+def keyboardListener(key, x, y):
+    """
+    Handles keyboard inputs for player movement and game controls
+    """
+    global is_red_light, last_toggle_time, player_pos, player_is_moving, was_moving_during_red, camera_mode
+    
+    # Restart game with R key
+    if key == b'r' or key == b'R':
+        start_game()
+        return
+    
+    # Debug keys to manually toggle light state
+    if key == b't':
+        is_red_light = not is_red_light
+        last_toggle_time = time.time()
+    
+    # Toggle camera mode with F key
+    if key == b'f' or key == b'F':
+        camera_mode = "first_person" if camera_mode == "third_person" else "third_person"
+    
+    # Only allow movement if game is active
+    if not game_active or not player_alive or player_won:
+        return
+    
+    # Player movement keys - only allowed during green light or debug
+    # W key - move forward
+    if key == b'w' or key == b'W':
+        if not is_red_light and player_alive and not player_won:
+            player_pos[2] -= player_speed  # Move forward (negative Z)
+            player_is_moving = True
+        elif is_red_light and player_alive and not player_won:
+            # Player attempted to move during red light - mark for elimination
+            was_moving_during_red = True
+            player_is_moving = True
+    
+    # S key - move backward
+    if key == b's' or key == b'S':
+        if not is_red_light and player_alive and not player_won:
+            player_pos[2] += player_speed * 0.3  # Move backward (positive Z) - even slower
+            player_is_moving = True
+        elif is_red_light and player_alive and not player_won:
+            was_moving_during_red = True
+            player_is_moving = True
+    
+    # A key - move left
+    if key == b'a' or key == b'A':
+        if not is_red_light and player_alive and not player_won:
+            player_pos[0] -= player_speed * 0.3  # Move left (negative X) - slower
+            player_is_moving = True
+        elif is_red_light and player_alive and not player_won:
+            was_moving_during_red = True
+            player_is_moving = True
+    
+    # D key - move right
+    if key == b'd' or key == b'D':
+        if not is_red_light and player_alive and not player_won:
+            player_pos[0] += player_speed * 0.3  # Move right (positive X) - slower
+            player_is_moving = True
+        elif is_red_light and player_alive and not player_won:
+            was_moving_during_red = True
+            player_is_moving = True
+    
+    # Keep player within path boundaries
+    if player_pos[0] < -PATH_WIDTH/2 + player_width/2:
+        player_pos[0] = -PATH_WIDTH/2 + player_width/2
+    if player_pos[0] > PATH_WIDTH/2 - player_width/2:
+        player_pos[0] = PATH_WIDTH/2 - player_width/2
+    
+    # Prevent moving past start line
+    if player_pos[2] > START_LINE_Z:
+        player_pos[2] = START_LINE_Z
+
+def specialKeyListener(key, x, y):
+    """
+    Handles special key inputs (arrow keys) for adjusting the camera angle and height.
+    """
+    global camera_pos
+    
+    # Extract camera position components
+    cam_x, cam_y, cam_z = camera_pos
+    
+    # Move camera up (UP arrow key)
+    if key == GLUT_KEY_UP:
+        cam_y += 20  # Move camera higher
+        
+    # Move camera down (DOWN arrow key)
+    if key == GLUT_KEY_DOWN:
+        cam_y -= 20  # Move camera lower
+        if cam_y < 50:  # Prevent going below the ground
+            cam_y = 50
+
+    # Moving camera left (LEFT arrow key)
+    if key == GLUT_KEY_LEFT:
+        cam_x -= 30  # Move camera left
+        
+    # Moving camera right (RIGHT arrow key)
+    if key == GLUT_KEY_RIGHT:
+        cam_x += 30  # Move camera right
+        
+    # Set a reasonable range for the camera position
+    if cam_x < -500: cam_x = -500
+    if cam_x > 500: cam_x = 500
+    if cam_y > 500: cam_y = 500
+
+    # Update the camera position
+    camera_pos = (cam_x, cam_y, cam_z)
+
+def mouseListener(button, state, x, y):
+    """
+    Handles mouse inputs for firing bullets (left click) and toggling camera mode (right click).
+    """
+    # # Left mouse button fires a bullet
+    # if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
+
+    # # Right mouse button toggles camera tracking mode
+    # if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
+    pass
+
+def setupCamera():
+    """
+    Configures the camera's projection and view settings.
+    Uses a perspective projection and positions the camera to look at the target.
+    """
+    glMatrixMode(GL_PROJECTION)  # Switch to projection matrix mode
+    glLoadIdentity()  # Reset the projection matrix
+    # Set up a perspective projection (field of view, aspect ratio, near clip, far clip)
+    gluPerspective(fovY, 1.25, 0.1, 2000) # 1.25 is the aspect ratio (1000/800)
+    glMatrixMode(GL_MODELVIEW)  # Switch to model-view matrix mode
+    glLoadIdentity()  # Reset the model-view matrix
+
+    # Position based on camera mode
+    if camera_mode == "third_person" and player_alive:
+        # Position camera behind player with offset for better view
+        cam_x = player_pos[0]
+        cam_y = player_pos[1] + 200  # Above player
+        cam_z = player_pos[2] + 300  # Behind player
+        
+        # Look at a point ahead of the player
+        look_x = player_pos[0]
+        look_y = player_pos[1] + 50  # Slightly above player eye level
+        look_z = player_pos[2] - 200  # Look ahead of player
+        
+        gluLookAt(cam_x, cam_y, cam_z,  # Camera position
+                look_x, look_y, look_z,  # Look-at target
+                0, 1, 0)  # Up vector
+    elif camera_mode == "first_person" and player_alive:
+        # First-person view (from player's eyes)
+        cam_x = player_pos[0]
+        cam_y = player_pos[1] + player_height - 20  # At player's eye level
+        cam_z = player_pos[2]  # At player's position
+        
+        # Look ahead of player
+        look_x = player_pos[0]
+        look_y = player_pos[1] + player_height - 20  # Maintain eye level
+        look_z = player_pos[2] - 100  # Look ahead
+        
+        gluLookAt(cam_x, cam_y, cam_z,  # Camera position
+                look_x, look_y, look_z,  # Look-at target
+                0, 1, 0)  # Up vector
+
+    else:
+        # If player is dead or won, use customizable camera position
+        x, y, z = camera_pos
+        gluLookAt(x, y, z,  # Camera position
+                0, 0, FINISH_LINE_Z/2 - 200,  # Look-at target
+                0, 1, 0)  # Up vector
+
+def idle():
+    """
+    Idle function that runs continuously:
+    - Updates game state
+    - Updates timer
+    - Triggers screen redraw for real-time updates.
+    """
+    # Update game state
+    update_game_state()
+    update_doll_rotation()
+    handle_player_movement()
+    check_game_conditions()
+    update_timer()  # Update the timer
+    handle_player_death()
+    
+    # Ensure the screen updates with the latest changes
+    glutPostRedisplay()
+
+def showScreen():
+    """
+    Display function to render the game scene:
+    - Clears the screen and sets up the camera.
+    - Draws everything of the screen
+    """
+    # Clear color and depth buffers
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glLoadIdentity()  # Reset modelview matrix
+    glViewport(0, 0, 1000, 800)  # Set viewport size
+
+    setupCamera()  # Configure camera perspective
+
+    # Draw the environment and game elements
+    draw_shapes()
+
+    # Display game info text at a fixed screen position
+    draw_text(10, 770, f"Red Light, Green Light Game")
+    draw_text(10, 740, f"Use WASD to move (only during green light!)")
+    
+    # Display current light state
+    if is_red_light:
+        glColor3f(1.0, 0.0, 0.0)  # Red text
+        draw_text(400, 770, "RED LIGHT - DON'T MOVE!")
+    else:
+        glColor3f(0.0, 1.0, 0.0)  # Green text
+        draw_text(400, 770, "GREEN LIGHT - RUN!")
+
+    # Display game status messages
+    display_game_status()
+    
+    # Swap buffers for smooth rendering (double buffering)
+    glutSwapBuffers()
+
+# Main function to set up OpenGL window and loop
+def main():
+    glutInit()
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)  # Double buffering, RGB color, depth test
+    glutInitWindowSize(1000, 800)  # Window size
+    glutInitWindowPosition(0, 0)  # Window position
+    wind = glutCreateWindow(b"Red Light, Green Light - Squid Game")  # Create the window
+
+    # Enable depth testing for proper 3D rendering
+    glEnable(GL_DEPTH_TEST)
+    
+    # Initialize the start time
+    global last_toggle_time
+    last_toggle_time = time.time()
+    
+    # Start the game
+    start_game()
+
+    glutDisplayFunc(showScreen)  # Register display function
+    glutKeyboardFunc(keyboardListener)  # Register keyboard listener
+    glutSpecialFunc(specialKeyListener)
+    glutMouseFunc(mouseListener)
+    glutIdleFunc(idle)  # Register the idle function to move the bullet automatically
+
+    glutMainLoop()  # Enter the GLUT main loop
+
+if __name__ == "__main__":
+    main()
