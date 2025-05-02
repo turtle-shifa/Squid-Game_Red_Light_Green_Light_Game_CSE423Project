@@ -84,7 +84,7 @@
 ---
 
 ## 🛠️ Technologies Used
-- **C++**
+- **Python**
 - **OpenGL**
 - **GLUT / GLFW (for window management and input)**
 - Custom 3D modeling using primitive shapes
